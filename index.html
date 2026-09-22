@@ -199,6 +199,15 @@
         .passport-grid div { background: #faf7f2; padding: 0.6rem; border-radius: 6px; border: 1px solid #eee4db; }
         .passport-grid strong { display: block; color: var(--primary-dark); font-size: 0.78rem; }
 
+        /* Action Tracker Table in Admin View */
+        .action-table {
+            width: 100%; border-collapse: collapse; margin-top: 1rem; background: #fff; border-radius: 8px; overflow: hidden;
+        }
+        .action-table th, .action-table td {
+            padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem;
+        }
+        .action-table th { background: #faf4ed; color: var(--primary-dark); font-weight: 700; }
+
         @media (max-width: 860px) {
             .webxr-container { grid-template-columns: 1fr; }
             header { flex-direction: column; gap: 1rem; }
@@ -218,7 +227,7 @@
             <button onclick="switchView('upcoming-view', this)">Upcoming & Polls</button>
             <button onclick="switchView('submit-view', this)">Add Heritage</button>
             <button onclick="switchView('experience-view', this)">WebXR 360°</button>
-            <button onclick="switchView('admin-view', this)">Trust Admin</button>
+            <button onclick="switchView('admin-view', this)">Trust & Preservation Admin</button>
         </nav>
     </header>
 
@@ -346,14 +355,34 @@
             </div>
         </section>
 
-        <!-- View 5: Trust Admin -->
+        <!-- View 5: Trust & Preservation Action Admin -->
         <section id="admin-view" class="view-section">
             <div style="margin-bottom: 1.5rem;">
                 <h2>Trust Verification & Preservation Intelligence Dashboard</h2>
-                <p style="color: var(--text-muted);">Tier 4 Expert Gate: AI डुप्लीकेशन स्कोर, साक्ष्य और कम्युनिटी सिग्नल्स की अंतिम समीक्षा।</p>
+                <p style="color: var(--text-muted);">Tier 4 Expert Gate & Preservation Action Tracking System</p>
             </div>
+
+            <h3 style="margin-bottom: 0.5rem;">📋 Tier 4 Verification Queue</h3>
             <div class="card-grid" id="admin-queue-grid">
                 <p style="color:var(--text-muted);">डैशबोर्ड लोड हो रहा है...</p>
+            </div>
+
+            <!-- Branch 2: Preservation Action Tracker Table -->
+            <div style="margin-top: 2.5rem;">
+                <h3 style="color: var(--primary);">🛡️ Preservation Intelligence & Action Tracker (Risk ➔ Action)</h3>
+                <p style="color:var(--text-muted); font-size:0.85rem;">प्रोटेक्टेड धरोहरों के लिए स्वचालित जोखिम विश्लेषण एवं संरक्षण कार्यवाही लॉग</p>
+                <table class="action-table" id="actionTable">
+                    <thead>
+                        <tr>
+                            <th>Heritage Title</th>
+                            <th>Preservation Risk</th>
+                            <th>Recommended Action</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="actionTableBody"></tbody>
+                </table>
             </div>
         </section>
 
@@ -367,12 +396,15 @@
             </div>
         </div>
 
-        <!-- Stage 2: Structured Heritage Passport Modal -->
+        <!-- Stage 2: Structured Heritage Passport Modal with Branch 3 JSON Export -->
         <div id="passportModal">
             <div class="passport-card">
-                <div class="passport-header">
-                    <span style="font-size:0.75rem; color:var(--accent); font-weight:700;">VRATYAVANI OFFICIAL HERITAGE PASSPORT</span>
-                    <h2 id="pp-title" style="color:var(--primary); margin-top:0.2rem;"></h2>
+                <div class="passport-header" style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <span style="font-size:0.75rem; color:var(--accent); font-weight:700;">VRATYAVANI OFFICIAL HERITAGE PASSPORT</span>
+                        <h2 id="pp-title" style="color:var(--primary); margin-top:0.2rem;"></h2>
+                    </div>
+                    <button class="btn-action" style="background:#2e7d32; font-size:0.75rem; padding:0.4rem 0.7rem;" onclick="exportPassportJSON()">📥 Export JSON</button>
                 </div>
                 <div class="passport-grid">
                     <div><strong>HERITAGE ID:</strong> <span id="pp-id"></span></div>
@@ -409,16 +441,15 @@
         try {
             firebase.initializeApp(firebaseConfig);
             db = firebase.firestore();
-        } catch(e) {
-            console.log("Firebase initialized");
-        }
+        } catch(e) {}
 
         const API_BASE = "http://127.0.0.1:8000/api";
         let activeHeritageId = "VV-KOLHUA01";
         let panoramaViewer = null;
         let mapInstance = null;
+        let activePassportData = null;
 
-        // Default Built-in Seed Data (Zero Dependency - Always Works on GitHub Pages)
+        // Default Built-in Seed Data
         let verifiedRecords = [
             {
                 heritage_id: "VV-KOLHUA01",
@@ -465,6 +496,24 @@
             }
         ];
 
+        // Branch 2: Preservation Action Tickets (Risk -> Action)
+        let preservationActions = [
+            {
+                id: "ACT-01",
+                title: "सुजनी कढ़ाई लोक कला",
+                risk: "HIGH",
+                action: "स्थानिक कारीगर कार्यशाला अनुदान + वीडियो प्रलेखन (Urgent Video Documentation)",
+                status: "In Progress"
+            },
+            {
+                id: "ACT-02",
+                title: "Kolhua Ashokan Pillar",
+                risk: "LOW",
+                action: "त्रैमासिक पुरातात्विक सर्वेक्षण व ASI साइनेज रखरखाव",
+                status: "Completed"
+            }
+        ];
+
         // 1. Navigation Switching
         function switchView(viewId, btnElement) {
             document.querySelectorAll('.view-section').forEach(sec => sec.classList.remove('active'));
@@ -477,13 +526,16 @@
                 setTimeout(initMap, 200);
             }
             if (viewId === 'upcoming-view') renderUpcomingList();
-            if (viewId === 'admin-view') renderAdminQueue();
+            if (viewId === 'admin-view') {
+                renderAdminQueue();
+                renderActionTable();
+            }
             if (viewId === 'experience-view') {
                 setTimeout(() => init360Scene("https://pannellum.org/images/cerro-toco-0.jpg"), 100);
             }
         }
 
-        // 2. Leaflet Map - Free OpenStreetMap Humanitarian/Standard Tiles (No API key, No 403 block)
+        // 2. Leaflet Map - OpenStreetMap Standard Tiles
         function initMap() {
             const mapContainer = document.getElementById('heritage-map');
             if (!mapContainer) return;
@@ -507,14 +559,11 @@
 
         // 3. Render Verified Records
         async function renderVerifiedList() {
-            // Try fetching from local FastAPI if online, else use sync records
             try {
                 const res = await fetch(`${API_BASE}/heritage/verified`);
                 const json = await res.json();
                 if (json.data && json.data.length > 0) verifiedRecords = json.data;
-            } catch(e) {
-                // Runs seamlessly via built-in records on GitHub Pages
-            }
+            } catch(e) {}
 
             const container = document.getElementById('verified-grid');
             container.innerHTML = '';
@@ -544,11 +593,12 @@
             initMap();
         }
 
-        // 4. Open Passport Modal
+        // 4. Open Passport Modal & Branch 3 Research Data
         function openPassport(heritageId) {
             const item = verifiedRecords.find(i => i.heritage_id === heritageId);
             if (!item) return;
 
+            activePassportData = item;
             document.getElementById('pp-title').innerText = item.title;
             document.getElementById('pp-id').innerText = item.heritage_id;
             document.getElementById('pp-pillar').innerText = item.pillar;
@@ -558,7 +608,7 @@
             document.getElementById('pp-lore').innerText = item.oral_story_or_tradition;
             document.getElementById('pp-people').innerText = (item.associated_communities || []).join(", ") || 'General Community';
             document.getElementById('pp-source').innerText = item.provenance_source || 'Verified Field Ingestion';
-            document.getElementById('pp-risk').innerText = 'Evaluated via Preservation Intelligence';
+            document.getElementById('pp-risk').innerText = item.risk_level || 'LOW';
             document.getElementById('pp-status').innerText = item.verification_status;
 
             document.getElementById('passportModal').style.display = 'flex';
@@ -566,6 +616,16 @@
 
         function closePassportModal() {
             document.getElementById('passportModal').style.display = 'none';
+        }
+
+        // Branch 3: Download Research JSON
+        function exportPassportJSON() {
+            if (!activePassportData) return;
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(activePassportData, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `${activePassportData.heritage_id}_passport.json`);
+            dlAnchorElem.click();
         }
 
         // 5. Dynamic QR
@@ -632,7 +692,6 @@
                 renderUpcomingList();
             }
 
-            // Sync with Firestore Cloud DB if reachable
             if (db) {
                 try {
                     await db.collection("community_votes").add({
@@ -644,7 +703,7 @@
             }
         }
 
-        // 8. Citizen Ingestion Submission (Client-Side AI Pipeline + Firestore Cloud Persist)
+        // 8. Citizen Ingestion Submission
         async function handleFormSubmit(e) {
             e.preventDefault();
             const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -658,7 +717,6 @@
             const story = document.getElementById('storyInput').value;
             const newId = "VV-INGEST-" + Math.floor(1000 + Math.random() * 9000);
 
-            // Client-Side AI Ingestion Simulation
             const aiReport = {
                 dialect: dialect,
                 category: pillar,
@@ -686,17 +744,16 @@
 
             upcomingRecords.unshift(newRecord);
 
-            // Cloud Firestore Sync
             if (db) {
                 try {
                     await db.collection("heritage_submissions").doc(newId).set({
                         ...newRecord,
                         created_at: firebase.firestore.FieldValue.serverTimestamp()
                     });
-                } catch(e) { console.log("Cloud sync fallback:", e); }
+                } catch(e) {}
             }
 
-            alert(`धरोहर सफलतापूर्वक दर्ज हुई और Cloud Firestore पर सुरक्षित हो गई!\n\nAI विश्लेषण परिणाम:\n• पहचानी गई बोली: ${aiReport.dialect}\n• श्रेणी: ${aiReport.category}\n• डुप्लीकेशन जोखिम: ${aiReport.duplicateMatch}%\n\nअब यह 4-Tier Trust कतार में उपलब्ध है।`);
+            alert(`धरोहर दर्ज हुई!\n• बोली: ${aiReport.dialect}\n• श्रेणी: ${aiReport.category}\n• डुप्लीकेशन जोखिम: ${aiReport.duplicateMatch}%`);
             document.getElementById('heritageForm').reset();
             submitBtn.innerText = "सबमिट करें (Submit for AI & Cloud Review)";
             submitBtn.disabled = false;
@@ -818,11 +875,53 @@
                 const item = upcomingRecords[index];
                 if (actionType === 'APPROVE') {
                     item.verification_status = "VERIFIED";
+                    item.risk_level = "MODERATE";
                     verifiedRecords.push(item);
+
+                    // Auto-generate Preservation Action Ticket
+                    preservationActions.push({
+                        id: `ACT-0${preservationActions.length + 1}`,
+                        title: item.title,
+                        risk: "MODERATE",
+                        action: "समुदायिक प्रलेखन व डिजिटल आर्काइविंग (Citizen Documentation Audit)",
+                        status: "Pending"
+                    });
                 }
                 upcomingRecords.splice(index, 1);
                 alert(`कार्यवाही पूर्ण: स्थिति बदलकर '${actionType === 'APPROVE' ? 'VERIFIED' : 'REJECTED'}' कर दी गई है।`);
                 renderAdminQueue();
+                renderActionTable();
+            }
+        }
+
+        // Branch 2: Render Preservation Action Table
+        function renderActionTable() {
+            const tbody = document.getElementById('actionTableBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            preservationActions.forEach(act => {
+                tbody.innerHTML += `
+                    <tr>
+                        <td><strong>${act.title}</strong></td>
+                        <td><span class="badge ${act.risk === 'HIGH' ? 'badge-risk' : 'badge-verified'}">${act.risk}</span></td>
+                        <td>${act.action}</td>
+                        <td><span style="font-weight:600; color:${act.status === 'Completed' ? 'var(--success)' : 'var(--warning)'};">${act.status}</span></td>
+                        <td>
+                            <button class="btn-action btn-outline" style="font-size:0.75rem; padding:0.25rem 0.6rem;" onclick="toggleActionStatus('${act.id}')">
+                                ${act.status === 'Completed' ? 'Reopen' : 'Mark Resolved'}
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function toggleActionStatus(actId) {
+            const act = preservationActions.find(a => a.id === actId);
+            if (act) {
+                act.status = act.status === 'Completed' ? 'In Progress' : 'Completed';
+                renderActionTable();
             }
         }
 
