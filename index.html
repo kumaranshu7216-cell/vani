@@ -89,6 +89,69 @@
             font-size: 0.85rem; font-weight: 600; color: var(--accent);
         }
 
+        /* Filter & Search Bar Styles (Point 2) */
+        .filter-controls {
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .search-row {
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 0.6rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            outline: none;
+        }
+
+        .search-input:focus {
+            border-color: var(--primary);
+        }
+
+        .district-select {
+            padding: 0.6rem 0.9rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: #fff;
+        }
+
+        .filter-tags-row {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-btn {
+            background: #faf4ed;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active, .filter-btn:hover {
+            background: var(--primary);
+            color: #ffffff;
+            border-color: var(--primary);
+        }
+
         #heritage-map {
             width: 100%;
             height: 380px;
@@ -157,6 +220,15 @@
             width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.95rem;
         }
 
+        .evidence-box {
+            background: #faf7f2; border: 1px dashed var(--accent); border-radius: 8px;
+            padding: 1rem; margin-bottom: 1.25rem;
+        }
+
+        .audio-recorder-row {
+            display: flex; gap: 0.6rem; align-items: center; margin-top: 0.5rem; flex-wrap: wrap;
+        }
+
         .webxr-container {
             background: #1a1716; color: #ffffff; border-radius: 12px; padding: 2rem;
             display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; align-items: flex-start;
@@ -185,7 +257,6 @@
             font-size: 0.8rem; color: #d4a373; border-top: 1px solid #3d3532; padding-top: 0.5rem; line-height: 1.5;
         }
 
-        /* Passport Modal */
         #passportModal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.75); z-index: 300; justify-content: center; align-items: center;
@@ -199,7 +270,6 @@
         .passport-grid div { background: #faf7f2; padding: 0.6rem; border-radius: 6px; border: 1px solid #eee4db; }
         .passport-grid strong { display: block; color: var(--primary-dark); font-size: 0.78rem; }
 
-        /* Action Tracker Table in Admin View */
         .action-table {
             width: 100%; border-collapse: collapse; margin-top: 1rem; background: #fff; border-radius: 8px; overflow: hidden;
         }
@@ -212,6 +282,7 @@
             .webxr-container { grid-template-columns: 1fr; }
             header { flex-direction: column; gap: 1rem; }
             .passport-grid { grid-template-columns: 1fr; }
+            .search-row { flex-direction: column; }
         }
     </style>
 </head>
@@ -242,11 +313,30 @@
                 </div>
             </div>
 
-            <!-- Stage 1 Heritage Map -->
+            <!-- Point 2: Filter & Search Engine Controls -->
+            <div class="filter-controls">
+                <div class="search-row">
+                    <input type="text" id="searchInput" class="search-input" placeholder="🔍 नाम, बोली या विवरण खोजें..." oninput="applyFilters()">
+                    <select id="districtFilter" class="district-select" onchange="applyFilters()">
+                        <option value="ALL">सभी ज़िले (All Districts)</option>
+                        <option value="Vaishali">वैशाली (Vaishali)</option>
+                        <option value="Muzaffarpur">मुज़फ़्फ़रपुर (Muzaffarpur)</option>
+                        <option value="Madhubani">मधुबनी (Madhubani)</option>
+                    </select>
+                </div>
+                <div class="filter-tags-row">
+                    <span style="font-size:0.8rem; font-weight:600; color:var(--text-muted);">स्तंभ (Pillar):</span>
+                    <button class="filter-btn active" onclick="setCategoryFilter('ALL', this)">सभी (All)</button>
+                    <button class="filter-btn" onclick="setCategoryFilter('tangible_monument', this)">मूर्त स्मारक</button>
+                    <button class="filter-btn" onclick="setCategoryFilter('intangible_craft', this)">पारंपरिक शिल्प</button>
+                    <button class="filter-btn" onclick="setCategoryFilter('intangible_ritual', this)">जीवित अनुष्ठान</button>
+                </div>
+            </div>
+
             <h3 style="margin-bottom: 0.5rem;">📍 जियो-हेरिटेज मानचित्र (Heritage Map)</h3>
             <div id="heritage-map"></div>
 
-            <h3 style="margin-bottom: 0.5rem;">सत्यापित धरोहर (Verified Heritage)</h3>
+            <h3 style="margin-bottom: 0.5rem;">सत्यापित धरोहर (<span id="verified-count">0</span>)</h3>
             <div class="card-grid" id="verified-grid">
                 <p style="color:var(--text-muted);">धरोहर लोड हो रही है...</p>
             </div>
@@ -299,8 +389,32 @@
                     </div>
                     <div class="form-group">
                         <label>ऐतिहासिक संदर्भ व मौखिक कथा (Narrative Lore)</label>
-                        <textarea id="storyInput" rows="4" required placeholder="बुजुर्गों द्वारा सुनाई गई कथा, अनुष्ठान की विधि, या ऐतिहासिक विवरण..."></textarea>
+                        <textarea id="storyInput" rows="3" required placeholder="बुजुर्गों द्वारा सुनाई गई कथा, अनुष्ठान की विधि, या ऐतिहासिक विवरण..."></textarea>
                     </div>
+
+                    <div class="evidence-box">
+                        <label style="font-weight:700; color:var(--primary-dark); font-size:0.85rem; display:block;">
+                            📁 साक्ष्य संलग्न करें (Attach Evidence & Lore)
+                        </label>
+                        
+                        <div style="margin-top:0.6rem;">
+                            <span style="font-size:0.8rem; color:var(--text-muted); display:block;">1. स्थानीय बोली में मौखिक कथा रिकॉर्ड करें (Web Audio API):</span>
+                            <div class="audio-recorder-row">
+                                <button type="button" class="btn-action" id="recordBtn" onclick="toggleAudioRecording()" style="background:#e65100;">🎙️ Start Recording</button>
+                                <span id="recordingStatus" style="font-size:0.8rem; font-weight:600; color:var(--danger);"></span>
+                            </div>
+                            <audio id="recordedAudioPlayer" controls style="display:none; width:100%; margin-top:0.6rem; height:36px;"></audio>
+                        </div>
+
+                        <div style="margin-top:0.8rem; border-top:1px dashed #ded4c7; padding-top:0.6rem;">
+                            <span style="font-size:0.8rem; color:var(--text-muted); display:block; margin-bottom:0.3rem;">2. स्थल या कलाकृति का फ़ोटो अपलोड करें:</span>
+                            <input type="file" id="imageFileInput" accept="image/*" onchange="previewUploadedImage(event)" style="font-size:0.8rem;">
+                            <div id="imagePreviewContainer" style="display:none; margin-top:0.5rem;">
+                                <img id="uploadedPreview" style="max-height:120px; border-radius:6px; border:1px solid var(--border);" alt="Preview">
+                            </div>
+                        </div>
+                    </div>
+
                     <button type="submit" class="btn-action" style="width: 100%; padding: 0.8rem;">सबमिट करें (Submit for AI & Cloud Review)</button>
                 </form>
             </div>
@@ -344,7 +458,6 @@
 
                     <div class="explainable-badge" id="explainable-source"></div>
 
-                    <!-- Phase 8: Artisan & Guide Economic Box -->
                     <div id="artisan-guide-box" style="margin-top:0.5rem; background:#201b1a; border:1px solid #4d3e38; border-radius:8px; padding:0.9rem;">
                         <h4 style="color:#d4a373; font-size:0.85rem; margin-bottom:0.5rem;">🤝 स्थानीय कारीगर एवं गाइड सहभागिता (Local Economy)</h4>
                         <div id="artisan-details" style="font-size:0.8rem; color:#e0dedc; line-height:1.5;">
@@ -367,7 +480,6 @@
                 <p style="color:var(--text-muted);">डैशबोर्ड लोड हो रहा है...</p>
             </div>
 
-            <!-- Branch 2: Preservation Action Tracker Table -->
             <div style="margin-top: 2.5rem;">
                 <h3 style="color: var(--primary);">🛡️ Preservation Intelligence & Action Tracker (Risk ➔ Action)</h3>
                 <p style="color:var(--text-muted); font-size:0.85rem;">प्रोटेक्टेड धरोहरों के लिए स्वचालित जोखिम विश्लेषण एवं संरक्षण कार्यवाही लॉग</p>
@@ -447,9 +559,19 @@
         let activeHeritageId = "VV-KOLHUA01";
         let panoramaViewer = null;
         let mapInstance = null;
+        let mapMarkers = [];
         let activePassportData = null;
 
-        // Default Built-in Seed Data
+        // Point 1: Media Recorder State Variables
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordedAudioBlob = null;
+        let uploadedImageBase64 = null;
+
+        // Point 2: Active Filter State
+        let selectedCategory = "ALL";
+        let filteredRecords = [];
+
         let verifiedRecords = [
             {
                 heritage_id: "VV-KOLHUA01",
@@ -496,7 +618,6 @@
             }
         ];
 
-        // Branch 2: Preservation Action Tickets (Risk -> Action)
         let preservationActions = [
             {
                 id: "ACT-01",
@@ -522,7 +643,7 @@
             btnElement.classList.add('active');
 
             if (viewId === 'explore-view') {
-                renderVerifiedList();
+                applyFilters();
                 setTimeout(initMap, 200);
             }
             if (viewId === 'upcoming-view') renderUpcomingList();
@@ -535,7 +656,7 @@
             }
         }
 
-        // 2. Leaflet Map - OpenStreetMap Standard Tiles
+        // 2. Leaflet Map
         function initMap() {
             const mapContainer = document.getElementById('heritage-map');
             if (!mapContainer) return;
@@ -548,27 +669,69 @@
                 }).addTo(mapInstance);
             }
             mapInstance.invalidateSize();
+            updateMapMarkers(filteredRecords.length > 0 ? filteredRecords : verifiedRecords);
+        }
 
-            verifiedRecords.forEach(item => {
+        function updateMapMarkers(records) {
+            if (!mapInstance) return;
+            mapMarkers.forEach(m => mapInstance.removeLayer(m));
+            mapMarkers = [];
+
+            records.forEach(item => {
                 if (item.location && item.location.latitude && item.location.longitude) {
                     const marker = L.marker([item.location.latitude, item.location.longitude]).addTo(mapInstance);
                     marker.bindPopup(`<b>${item.title}</b><br>📍 ${item.location.district}<br><button style="margin-top:4px; font-size:11px; padding:2px 6px; cursor:pointer;" onclick="openPassport('${item.heritage_id}')">View Passport</button>`);
+                    mapMarkers.push(marker);
                 }
             });
         }
 
-        // 3. Render Verified Records
-        async function renderVerifiedList() {
-            try {
-                const res = await fetch(`${API_BASE}/heritage/verified`);
-                const json = await res.json();
-                if (json.data && json.data.length > 0) verifiedRecords = json.data;
-            } catch(e) {}
+        // -------------------------------------------------------------
+        // Point 2: Filter & Search Engine Logic
+        // -------------------------------------------------------------
+        function setCategoryFilter(category, btnElement) {
+            selectedCategory = category;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            if (btnElement) btnElement.classList.add('active');
+            applyFilters();
+        }
 
+        function applyFilters() {
+            const searchTerm = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : "").toLowerCase().trim();
+            const district = document.getElementById('districtFilter') ? document.getElementById('districtFilter').value : "ALL";
+
+            filteredRecords = verifiedRecords.filter(item => {
+                const matchesSearch = !searchTerm || 
+                    item.title.toLowerCase().includes(searchTerm) ||
+                    (item.oral_story_or_tradition && item.oral_story_or_tradition.toLowerCase().includes(searchTerm)) ||
+                    (item.primary_dialect && item.primary_dialect.toLowerCase().includes(searchTerm));
+
+                const matchesDistrict = (district === "ALL") || 
+                    (item.location && item.location.district.toLowerCase() === district.toLowerCase());
+
+                const matchesCategory = (selectedCategory === "ALL") || 
+                    (item.pillar === selectedCategory);
+
+                return matchesSearch && matchesDistrict && matchesCategory;
+            });
+
+            renderVerifiedList(filteredRecords);
+            updateMapMarkers(filteredRecords);
+        }
+
+        // 3. Render Verified Records
+        function renderVerifiedList(records = verifiedRecords) {
             const container = document.getElementById('verified-grid');
+            const countElem = document.getElementById('verified-count');
+            if (countElem) countElem.innerText = records.length;
             container.innerHTML = '';
 
-            verifiedRecords.forEach(item => {
+            if (records.length === 0) {
+                container.innerHTML = '<p style="color:var(--text-muted); grid-column:1/-1;">कोई परिणाम नहीं मिला। कृपया फ़िल्टर बदलें।</p>';
+                return;
+            }
+
+            records.forEach(item => {
                 const risk = item.risk_level || "LOW";
                 container.innerHTML += `
                     <div class="card">
@@ -590,7 +753,6 @@
                     </div>
                 `;
             });
-            initMap();
         }
 
         // 4. Open Passport Modal & Branch 3 Research Data
@@ -618,7 +780,6 @@
             document.getElementById('passportModal').style.display = 'none';
         }
 
-        // Branch 3: Download Research JSON
         function exportPassportJSON() {
             if (!activePassportData) return;
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(activePassportData, null, 2));
@@ -670,6 +831,7 @@
                             <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:0.5rem;">बोली: ${item.primary_dialect} | स्रोत: ${item.provenance_source}</p>
                             <div style="background:#fcf7f2; border-radius:6px; padding:0.6rem; margin-bottom:1rem; font-size:0.85rem;">
                                 <strong>Community Signal: ${item.community_signal_percentage}%</strong> (${item.total_votes} मत) | 📁 साक्ष्य: ${item.evidence_count} फ़ाइलें
+                                ${item.has_audio ? '<span style="display:block; margin-top:3px; color:var(--accent);">🎙️ प्रामाणिक मौखिक ऑडियो संलग्न</span>' : ''}
                             </div>
                             <div class="card-footer" style="gap:0.5rem;">
                                 <button class="btn-action" style="flex:1; background:var(--success);" onclick="castVote('${item.heritage_id}', 'authentic')">✓ Authentic</button>
@@ -681,7 +843,6 @@
             });
         }
 
-        // 7. Cast Vote
         async function castVote(heritageId, voteType) {
             const record = upcomingRecords.find(r => r.heritage_id === heritageId);
             if (record) {
@@ -703,11 +864,65 @@
             }
         }
 
+        // Point 1: Media Functions
+        async function toggleAudioRecording() {
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordingStatus');
+            const player = document.getElementById('recordedAudioPlayer');
+
+            if (!mediaRecorder || mediaRecorder.state === "inactive") {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                        const audioUrl = URL.createObjectURL(recordedAudioBlob);
+                        player.src = audioUrl;
+                        player.style.display = 'block';
+                        status.innerText = "✓ ऑडियो सुरक्षित";
+                        status.style.color = "var(--success)";
+                    };
+
+                    mediaRecorder.start();
+                    btn.innerText = "⏹️ Stop Recording";
+                    btn.style.background = "#d32f2f";
+                    status.innerText = "🔴 रिकॉर्डिंग जारी...";
+                    status.style.color = "var(--danger)";
+                } catch(err) {
+                    alert("माइक्रोफ़ोन एक्सेस अस्वीकृत: " + err.message);
+                }
+            } else if (mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                btn.innerText = "🎙️ Record Again";
+                btn.style.background = "#e65100";
+            }
+        }
+
+        function previewUploadedImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    uploadedImageBase64 = e.target.result;
+                    const preview = document.getElementById('uploadedPreview');
+                    preview.src = uploadedImageBase64;
+                    document.getElementById('imagePreviewContainer').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
         // 8. Citizen Ingestion Submission
         async function handleFormSubmit(e) {
             e.preventDefault();
             const submitBtn = e.target.querySelector('button[type="submit"]');
-            submitBtn.innerText = "AI Processing & Cloud Sync...";
+            submitBtn.innerText = "AI Processing & Evidence Sync...";
             submitBtn.disabled = true;
 
             const title = document.getElementById('titleInput').value;
@@ -720,9 +935,11 @@
             const aiReport = {
                 dialect: dialect,
                 category: pillar,
-                duplicateMatch: Math.floor(Math.random() * 15),
+                duplicateMatch: Math.floor(Math.random() * 12),
                 risk: "LOW"
             };
+
+            const evidenceCount = 1 + (recordedAudioBlob ? 1 : 0) + (uploadedImageBase64 ? 1 : 0);
 
             const newRecord = {
                 heritage_id: newId,
@@ -735,11 +952,12 @@
                 historical_background: "AI Classified Ingestion Record",
                 oral_story_or_tradition: story,
                 associated_communities: ["Field Contributor Community"],
-                community_signal_percentage: 75,
-                total_votes: 4,
-                evidence_count: 2,
+                community_signal_percentage: 78,
+                total_votes: 6,
+                evidence_count: evidenceCount,
+                has_audio: !!recordedAudioBlob,
                 ai_duplicate_risk: "LOW",
-                cover_image_url: "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80"
+                cover_image_url: uploadedImageBase64 || "https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80"
             };
 
             upcomingRecords.unshift(newRecord);
@@ -753,8 +971,15 @@
                 } catch(e) {}
             }
 
-            alert(`धरोहर दर्ज हुई!\n• बोली: ${aiReport.dialect}\n• श्रेणी: ${aiReport.category}\n• डुप्लीकेशन जोखिम: ${aiReport.duplicateMatch}%`);
+            alert(`धरोहर और साक्ष्य सफलतापूर्वक दर्ज हुए!\n• बोली: ${aiReport.dialect}\n• साक्ष्य फ़ाइलें: ${evidenceCount}\n• ऑडियो साक्ष्य: ${recordedAudioBlob ? 'संलग्न' : 'नहीं'}`);
+            
             document.getElementById('heritageForm').reset();
+            document.getElementById('recordedAudioPlayer').style.display = 'none';
+            document.getElementById('recordingStatus').innerText = '';
+            document.getElementById('imagePreviewContainer').style.display = 'none';
+            recordedAudioBlob = null;
+            uploadedImageBase64 = null;
+
             submitBtn.innerText = "सबमिट करें (Submit for AI & Cloud Review)";
             submitBtn.disabled = false;
             switchView('upcoming-view', document.querySelectorAll('nav button')[1]);
@@ -776,7 +1001,7 @@
             }
         }
 
-        // 10. Persona AI Switching
+        // 10. Persona AI
         function switchPersona(personaKey, btnElement) {
             document.querySelectorAll('.persona-btn').forEach(b => b.classList.remove('active'));
             if (btnElement) btnElement.classList.add('active');
@@ -792,7 +1017,7 @@
             document.getElementById('explainable-source').innerHTML = `<strong>Explainable AI Provenance:</strong> ASI Baseline & Epigraphica Indica 1904<br><span style="color:#81c784;">• स्थानिक कारीगर लिंक: बसाढ़ ग्राम टेराकोटा एवं पत्थर नक्काशी शिल्पकार</span>`;
         }
 
-        // 11. Local Economy Directory
+        // 11. Local Economy
         function loadArtisanAndGuides(heritageId) {
             const container = document.getElementById('artisan-details');
             if (!container) return;
@@ -821,7 +1046,6 @@
             setTimeout(() => init360Scene("https://pannellum.org/images/cerro-toco-0.jpg"), 150);
         }
 
-        // 12. Audio Guide
         function playAudioGuide() {
             const text = document.getElementById('narrative-output').innerText;
             if (!text || !('speechSynthesis' in window)) return;
@@ -878,7 +1102,6 @@
                     item.risk_level = "MODERATE";
                     verifiedRecords.push(item);
 
-                    // Auto-generate Preservation Action Ticket
                     preservationActions.push({
                         id: `ACT-0${preservationActions.length + 1}`,
                         title: item.title,
@@ -891,10 +1114,10 @@
                 alert(`कार्यवाही पूर्ण: स्थिति बदलकर '${actionType === 'APPROVE' ? 'VERIFIED' : 'REJECTED'}' कर दी गई है।`);
                 renderAdminQueue();
                 renderActionTable();
+                applyFilters();
             }
         }
 
-        // Branch 2: Render Preservation Action Table
         function renderActionTable() {
             const tbody = document.getElementById('actionTableBody');
             if (!tbody) return;
@@ -927,7 +1150,7 @@
 
         // Page Load Init
         window.onload = function() {
-            renderVerifiedList();
+            applyFilters();
             switchPersona('tourist', document.querySelectorAll('.persona-btn')[0]);
             loadArtisanAndGuides("VV-KOLHUA01");
         };
